@@ -43,9 +43,9 @@ If the request includes parameters, they are parsed and passed as arguments to t
 
 Handling JSON Requests:
 
-Content-Type: application/json
+Requires Content-Type: application/json
 
-Request Method: POST
+Requires Request Method: POST
 
 The JSON is parsed into an object and passed to the service.
 
@@ -55,11 +55,13 @@ Annotations:
 
 @AutoWired("fieldName") → automatically sets class fields from request parameters.
 
-@Get("methodName"), @Post("methodName"), @Forward("methodName") → handle request methods.
+@Get("methodName"), @Post("methodName") - handle request methods like if a method contains @Get annotation then it will only served if the get type request is made.
 
-@InjectSessionScope, @InjectApplicationScope, @InjectRequestScope → inject corresponding scope objects (requires setter methods like setSessionScope()).
+ @Forward("methodName") the request is forwarded to specified service if the current service is completed and the request is forwarded 
 
-@SecuredAccess(checkPost="className", guard="methodName") → before serving a request, it creates an instance of the checkPost class and executes the guard method. If successful, the service runs; otherwise, a SC_SERVICE_UNREACHABLE error is sent.
+@InjectSessionScope, @InjectApplicationScope, @InjectRequestScope - inject corresponding scope objects (requires setter methods like setSessionScope()).
+
+@SecuredAccess(checkPost="className", guard="methodName") -if a class declared with this then before serving a request, it creates an instance of the checkPost class and executes the guard method. If successful, the service runs; otherwise, a SC_SERVICE_UNREACHABLE error is sent.
 
 ## 3. Raka Servlet
 
