@@ -51,9 +51,9 @@ The JSON is parsed into an object and passed to the service.
 
 Annotations:
 
-@RequestParameter("paramName") → binds request parameters to method parameters.
+@RequestParameter("paramName") - binds request parameters to method parameters.
 
-@AutoWired("fieldName") → automatically sets class fields from request parameters.
+@AutoWired("fieldName") - automatically sets class fields from request parameters.
 
 @Get("methodName"), @Post("methodName") - handle request methods like if a method contains @Get annotation then it will only served if the get type request is made.
 
