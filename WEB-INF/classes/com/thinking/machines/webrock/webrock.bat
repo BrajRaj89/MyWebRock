@@ -1,0 +1,1 @@
+javac  -cp c:\tomcat11\lib\*;c:\gson\*;c:\tomcat11\webapps\tmwebrock\WEB-INF\classes; *.java

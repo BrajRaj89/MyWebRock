@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<title>TMWEbRock</title>
+<script src="/tmwebrock/js/jquery.js"></script>
+<script src="/tmwebrock/jsFile?name=student.js"></script>
+<script>
+function addForm(event)
+{
+var ss = new StudentService();
+event.preventDefault();
+var roll = $("#roll1").val();
+if(roll=="" || roll.length==0) 
+{
+alert('Enter roll Number');
+return;
+}
+var name = $("#name1").val();
+if(name=="" || name.length==0) 
+{
+alert('Enter name');
+return;
+}
+var gender = $("#gender1").val();
+if(gender=="" || gender.length==0) 
+{
+alert('Enter Gender');
+return;
+}
+var stud = new Student(roll,name,gender);
+var prm = ss.add(stud);
+prm.then(result=>{
+alert(result);
+})
+.catch(error=>{
+alert(error.message);
+});
+}
+
+function updateForm(event)
+{
+var ss = new StudentService();
+event.preventDefault();
+var roll = $("#roll2").val();
+if(roll=="" || roll.length==0) 
+{
+alert('Enter roll Number');
+return;
+}
+var name = $("#name2").val();
+if(name=="" || name.length==0) 
+{
+alert('Enter name');
+return;
+}
+var gender = $("#gender2").val();
+if(gender=="" || gender.length==0) 
+{
+alert('Enter Gender');
+return;
+}
+var stud = new Student(roll,name,gender);
+var prm= ss.update(stud);
+prm.then(function(result){
+alert(result);
+})
+.catch(function(error){
+alert(error.message);
+});
+}
+
+function deleteForm(event)
+{
+var ss = new StudentService();
+event.preventDefault();
+var roll = $("#roll3").val();
+if(roll=="" || roll.length==0)
+{
+alert('Enter roll number');
+return;
+}
+var prm = ss.delete(roll);
+prm.then(result=>{
+alert(result);
+})
+.catch(error=>{
+alert(error.message);
+});
+
+}
+function getByForm(event)
+{
+var container = $("#container");
+container.innerHTML="";
+var ss = new StudentService();
+event.preventDefault();
+var roll = $("#roll4").val();
+if(roll=="" || roll.length==0)
+{
+alert('Enter roll number');
+return;
+}
+var prm = ss.getBy(roll);
+prm.then(function(result)
+{
+result = JSON.parse(result);
+var roll= result.rollNumber;
+var name = result.name;
+var gender = result.gender;
+var rspan = $("<span>");
+rspan.text(roll);
+var nspan =  $("<span>");
+nspan.text(name);
+var gspan =  $("<span>");
+gspan.text(gender);
+var label1 =  $("<label>");;
+label1.text("Roll Number :");
+var label2 = $("<label>");
+label2.text(", Name :");
+var label3 = $("<label>");
+label3.text(", Gender :");
+container.append(label1);
+container.append(rspan);
+container.append(label2);
+container.append(nspan);
+container.append(label3);
+container.append(gspan);
+})
+.catch(function(error){
+alert(error.message);
+});
+
+}
+function getAllForm(event)
+{
+var ss = new StudentService();
+event.preventDefault();
+var prm = ss.getAll();
+var parent =$("#showdata");
+parent.innerHTML ="";
+
+prm.then(function(result)
+{
+result = JSON.parse(result);
+result.forEach(function(student){
+var row = $("<tr>");
+var d1 = $("<td>");	
+var d2 = $("<td>");	
+var d3 = $("<td>");	
+
+d1.text(student.rollNumber);
+d2.text(student.name);
+d3.text(student.gender);
+row.append(d1);
+row.append(d2);
+row.append(d3);
+parent.append(row);
+});
+})
+.catch(function(error){
+alert(error.message);
+});
+
+}
+</script>
+</head>
+<body>
+<form id='addForm' onsubmit='addForm(event)'>
+<label for="roll1">RollNumber</label>
+<input type="number" id="roll1" name="rollNumber"><br>
+<label for="name1">Name</label>
+<input type="text" id="name1" name="name"><br>
+<label for="gender1">Gender</label>
+<input type="text" id="gender1" name="gender"><br>
+<button type='submit' >add</button><br>
+</form>
+<form id='updateForm' onsubmit='updateForm(event)'>
+<label for="roll2">RollNumber</label>
+<input type="number" id="roll2" name="rollNumber"><br>
+<label for="name2">Name</label>
+<input type="text" id="name2" name="name"><br>
+<label for="gender2">Gender</label>
+<input type="text" id="gender2" name="gender"><br>
+<button type='submit' >update</button><br>
+</form>
+<form id='deleteForm' onsubmit='deleteForm(event)'>
+<label for="roll3">RollNumber</label>
+<input type="number" id="roll3" name="rollNumber"><br>
+<button type='submit'>delete</button><br>
+</form>
+<form id='getByRollForm' onsubmit='getByForm(event)'>
+<label for="roll4">RollNumber</label>
+<input type="number" id="roll4" name="rollNumber"><br>
+<button type='submit' >getByRoll</button><br>
+</form>
+<div id="container"></div>
+<form id='getAllForm' onsubmit='getAllForm(event)'>
+<label>All Students</label>
+<button type='submit' >getAll</button><br>
+</form>
+<table id='showdata' border="1px solid black">
+<thead>
+<tr>
+<td>Roll Number</td>
+<td>Name</td>
+<td>Gender</td>
+</tr>
+</thead>
+</table>
+</body>
+</html>

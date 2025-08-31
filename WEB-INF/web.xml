@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+ version="6.0"
+metadata-complete="true">
+
+<description>TMWebRock</description>
+<display-name>TMWebRock</display-name>
+
+<welcome-file-list>
+<welcome-file>index.html</welcome-file>
+</welcome-file-list>
+
+<servlet>
+<servlet-name>TMWebRockStarter</servlet-name>
+<servlet-class>com.thinking.machines.webrock.TMWebRockStarter</servlet-class>
+<init-param>
+<param-name>SERVICE_PACKAGE_PREFIX</param-name>
+<param-value>bobby.test</param-value>
+</init-param>
+<init-param>
+<param-name>jsFile</param-name>
+<param-value>student.js</param-value>
+</init-param>
+<load-on-startup>1</load-on-startup>
+</servlet>
+<servlet-mapping>
+<servlet-name>TMWebRockStarter</servlet-name>
+<url-pattern>/startup</url-pattern>
+</servlet-mapping>
+<servlet>
+<servlet-name>TMWebRock</servlet-name>
+<servlet-class>com.thinking.machines.webrock.TMWebRock</servlet-class>
+</servlet>
+<servlet-mapping>
+<servlet-name>TMWebRock</servlet-name>
+<url-pattern>/my/*</url-pattern>
+<load-on-startup>2</load-on-startup>
+</servlet-mapping>
+<servlet>
+<servlet-name>Raka</servlet-name>
+<servlet-class>com.thinking.machines.webrock.Raka</servlet-class>
+</servlet>
+<servlet-mapping>
+<servlet-name>Raka</servlet-name>
+<url-pattern>/jsFile</url-pattern>
+</servlet-mapping>
+
+</web-app>
