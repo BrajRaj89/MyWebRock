@@ -1,8 +1,8 @@
 package bobby.test;
-import com.thinking.machines.webrock.annotations.*;
+import com.webrock.annotations.*;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
-import com.thinking.machines.webrock.pojo.*;
+import com.webrock.pojo.*;
 
 
 @Path("Services2")
@@ -36,7 +36,7 @@ System.out.println(var1+var2);
 public void postTypeResponse(Student student)
 {
 System.out.println("Response2 got called_______________________");
-System.out.println("student name :"+student.getName()+" student gender :"+student.getGender());
+System.out.println("student name :"+student.getName()+", student gender :"+student.getGender());
 }
 
 @Post("response3")

@@ -1,5 +1,5 @@
 package bobby.test;
-import com.thinking.machines.webrock.annotations.*;
+import com.webrock.annotations.*;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 

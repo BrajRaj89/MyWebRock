@@ -1,0 +1,9 @@
+package com.webrock.annotations;
+import java.lang.annotation.*;
+
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface InjectApplicationDirectory
+{
+public String value();
+}

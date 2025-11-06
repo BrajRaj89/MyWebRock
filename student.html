@@ -3,8 +3,8 @@
 <head>
 <meta charset='utf-8'>
 <title>TMWEbRock</title>
-<script src="/tmwebrock/js/jquery.js"></script>
-<script src="/tmwebrock/jsFile?name=student.js"></script>
+<script src="/MyWebRock/js/jquery.js"></script>
+<script src="/MyWebRock/jsFile?name=student.js"></script>
 <script>
 function addForm(event)
 {
@@ -28,13 +28,16 @@ if(gender=="" || gender.length==0)
 alert('Enter Gender');
 return;
 }
-var stud = new Student(roll,name,gender);
+var stud = new Student();
+stud.setGender(gender);
+stud.setRollNumber(roll);
+stud.setName(name);
 var prm = ss.add(stud);
 prm.then(result=>{
 alert(result);
 })
 .catch(error=>{
-alert(error.message);
+alert(error);
 });
 }
 
@@ -60,7 +63,10 @@ if(gender=="" || gender.length==0)
 alert('Enter Gender');
 return;
 }
-var stud = new Student(roll,name,gender);
+var stud = new Student();
+stud.setGender(gender);
+stud.setRollNumber(roll);
+stud.setName(name);
 var prm= ss.update(stud);
 prm.then(function(result){
 alert(result);
@@ -89,7 +95,7 @@ alert(error.message);
 });
 
 }
-function getByForm(event)
+function getByRollForm(event)
 {
 var container = $("#container");
 container.innerHTML="";
@@ -148,7 +154,6 @@ var row = $("<tr>");
 var d1 = $("<td>");	
 var d2 = $("<td>");	
 var d3 = $("<td>");	
-
 d1.text(student.rollNumber);
 d2.text(student.name);
 d3.text(student.gender);
@@ -189,7 +194,7 @@ alert(error.message);
 <input type="number" id="roll3" name="rollNumber"><br>
 <button type='submit'>delete</button><br>
 </form>
-<form id='getByRollForm' onsubmit='getByForm(event)'>
+<form id='getByRollForm' onsubmit='getByRollForm(event)'>
 <label for="roll4">RollNumber</label>
 <input type="number" id="roll4" name="rollNumber"><br>
 <button type='submit' >getByRoll</button><br>

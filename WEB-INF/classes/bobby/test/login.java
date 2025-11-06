@@ -1,6 +1,6 @@
 package bobby.test;
-import com.thinking.machines.webrock.annotations.*;
-import com.thinking.machines.webrock.exceptions.*;
+import com.webrock.annotations.*;
+import com.webrock.exceptions.*;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 
