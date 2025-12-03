@@ -57,7 +57,7 @@ runOStartup3(arg0)
 }
 class Services2
 {
-classNo;
+student;
 sessionScope;
 servletContext;
 getTypeResponse(arg0,arg1)
@@ -102,13 +102,13 @@ getGender()
 {
 return this.gender;
 }
-getRollNumber()
-{
-return this.rollNumber;
-}
 setRollNumber(arg0)
 {
 this.rollNumber=arg0;
+}
+getRollNumber()
+{
+return this.rollNumber;
 }
 }
 class StudentService

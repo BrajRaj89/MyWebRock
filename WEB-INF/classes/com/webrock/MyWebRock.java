@@ -27,8 +27,11 @@ public void processRequest(HttpServletRequest request,HttpServletResponse respon
 {
 try
 {
+Gson gson =null;
+gson = new Gson();
 PrintWriter pw = response.getWriter();
 String url = request.getPathInfo();
+System.out.println("request Arrived for url->"+url);
 ServletContext context = getServletContext();
 Map<String,Service> map = (Map<String,Service>)context.getAttribute("services");
 Service service = map.get(url);
@@ -39,9 +42,17 @@ ApplicationDirectory directory = new ApplicationDirectory(new File(filePath));
 try
 {
 Class<?> clazz = service.getServiceClass();
-Object obj = clazz.getDeclaredConstructor().newInstance();
+Object obj = service.getServiceObject();
+if(obj==null)
+{
+obj = clazz.getDeclaredConstructor().newInstance();
+System.out.println("object for class "+url+" not found in data structure");
+}else
+{
+System.out.println("object for class "+url+" found in data structure");
+}
 Method m = service.getService();
-if(requestType.equals ("get"))
+if(requestType.equals("get"))
 {
 if(!service.getGetAllowed())
 {
@@ -56,11 +67,11 @@ response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 return;
 }
 }
+String forwardTo = service.getForward();
 HttpSession session = request.getSession();
 SessionScope sessionScope = new SessionScope(session);
 ServletContext servletContext = getServletContext();
 ApplicationScope applicationScope = new ApplicationScope(servletContext);
-
 if(service.getSecuredService())
 {
 Class<?> securedService = service.getCheckPost();
@@ -70,7 +81,6 @@ if(securedService!=null && guard!=null)
 Parameter paramsOfss[] = guard.getParameters();
 Object objOfparams[] = new Object[paramsOfss.length];
 int index=0;
-
 for(Parameter param:paramsOfss)
 {
 Class<?> paramClass = param.getType();
@@ -91,18 +101,20 @@ index++;
 try
 {
 Object ssobj = securedService.getDeclaredConstructor().newInstance();
-if(guard.getReturnType().getName().equals("void"))
+boolean flag = (boolean)guard.invoke(ssobj,objOfparams);
+if(!flag)
 {
-guard.invoke(ssobj,objOfparams);
+System.out.println("Unauthorized access");
+return;
 }
 }catch(Exception e)
 {
+System.out.println(e.getMessage());
 response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
 return;
 }
 } // if has class and guard
 }// if it is secured service
-
 if(service.getInjectSessionScope())
 {
 try
@@ -111,8 +123,7 @@ Method method = clazz.getMethod("setSessionScope");
 if(method!=null) method.invoke(obj,sessionScope);
 }catch(NoSuchMethodException e)
 {
-
-
+System.out.println(e.getMessage());
 }
 }
 if(service.getInjectRequestScope())
@@ -124,6 +135,7 @@ Method method = clazz.getMethod("setRequestScope");
 if(method!=null) method.invoke(obj,requestScope);
 }catch(NoSuchMethodException e)
 {
+System.out.println("The resource setRequestScope specified Not Found");
 pw.print("The resource setRequestScope specified Not Found");
 return;
 }
@@ -136,6 +148,7 @@ Method method  = clazz.getMethod("setApplicationScope");
 if(method!=null) method.invoke(obj,applicationScope);
 }catch(NoSuchMethodException e)
 {
+System.out.println("The resource setRequestScope specified Not Found");
 pw.print("The resource setRequestScope specified Not Found");
 return;
 }
@@ -148,12 +161,19 @@ for(Autowired wired:listOfWired)
 String name  = wired.getName();
 Field field= wired.getField();
 field.setAccessible(true);
-Class<?> fieldClass = field.getType();
+Class<?> fieldType= field.getType();
 Object actualValue = null;
 String value = null;
 value = request.getParameter(name);
-int val = Integer.parseInt(value);
-field.set(obj,val);
+if(value==null) continue;
+try
+{
+actualValue = getActualTypeValue(value,fieldType);
+field.set(obj,actualValue);
+}catch(ServiceException se)
+{
+System.out.println(se.getMessage());
+}
 }
 }
 Field fields[] = clazz.getDeclaredFields();
@@ -165,6 +185,7 @@ if(injectf!=null)
 String name  = injectf.value();
 Class<?> type = f.getType();
 String value = request.getParameter(name);
+if(value==null) continue;
 try
 {
 Object acval = getActualTypeValue(value,type);
@@ -172,6 +193,7 @@ f.setAccessible(true);
 f.set(obj,acval);
 }catch(ServiceException se)
 {
+System.out.println(se.getMessage());
 pw.print(se.getMessage());
 }
 }
@@ -192,8 +214,6 @@ if(requestType.equals("get"))
 response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 return;
 }
-Gson gson =null;
-gson = new Gson();
 if(parameters.length==1)
 {
 Class<?> jsonClass = parameters[0].getType();
@@ -202,7 +222,10 @@ StringBuffer sb = new StringBuffer();
 String line;
 while((line=rd.readLine())!=null) sb.append(line);
 String jsonString  = sb.toString();
+System.out.println("request string _________________ "+jsonString);
 Object objp = gson.fromJson(jsonString,jsonClass);
+System.out.println(jsonClass.getSimpleName());
+System.out.println("printing the data object "+objp);
 try
 {
 if(m.getReturnType().getName().equals("void"))
@@ -211,12 +234,22 @@ m.invoke(obj,objp);
 }else
 {
 valueReturned = m.invoke(obj,objp);
-String responseString = gson.toJson(valueReturned);
-pw.print(responseString);
+if(forwardTo==null)
+{
+if(!valueReturned.getClass().isPrimitive())
+{
+String jString = gson.toJson(valueReturned);
+pw.println(jString);
+}else
+{
+pw.print(valueReturned);
+}
 return;
+}
 }
 }catch(InvocationTargetException e)
 {
+System.out.println(e.getMessage());
 Throwable cause = e.getCause();
 String message;
 if(cause instanceof java.sql.SQLIntegrityConstraintViolationException)
@@ -232,10 +265,9 @@ else
 message = "Unexpected error occurred!";
 }
 response.setContentType("text/plain");
-pw.write(message.replace("'", "\\'"));
+pw.write(message);
 }
-}
-else if(parameters.length>1)
+}else if(parameters.length>1)
 {
 try
 {
@@ -264,19 +296,29 @@ Class<?> jsonClass = parameters[i].getType();
 Object objp = gson.fromJson(jsonString,jsonClass);
 arguments[i] = objp;
 }
-}// forloop 
+}
 if(m.getReturnType().getName().equals("void"))
 {
 m.invoke(obj,arguments);
 }else
 {
 valueReturned = m.invoke(obj,arguments);
-String responseString = gson.toJson(valueReturned);
-pw.print(responseString);
+if(forwardTo==null)
+{
+if(!valueReturned.getClass().isPrimitive())
+{
+String jString = gson.toJson(valueReturned);
+pw.println(jString);
+}else
+{
+pw.print(valueReturned);
+}
 return;
+}
 }
 }catch(Exception e)
 {
+System.out.println(e.getMessage());
 response.sendError(HttpServletResponse.SC_FORBIDDEN);
 }
 }
@@ -326,6 +368,7 @@ paravalues[index] = actualval;
 index++;
 }catch(ServiceException se)
 {
+System.out.println("Error while getting the actual param");
 response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 return;
 }
@@ -338,7 +381,6 @@ m.invoke(obj,paravalues);
 }else
 {
 valueReturned = m.invoke(obj,paravalues);
-Gson gson = new Gson();
 String jsonString = gson.toJson(valueReturned);
 response.getWriter().print(jsonString);
 return;
@@ -353,24 +395,35 @@ m.invoke(obj);
 }else
 {
 valueReturned = m.invoke(obj);
-Gson gson = new Gson();
+if(forwardTo==null)
+{
+if(valueReturned.getClass().isPrimitive())
+{
+pw.print(valueReturned);
+}else
+{
 String jsonString = gson.toJson(valueReturned);
 pw.print(jsonString);
+}
+}
 return;
 }
 }
-String forwardTo = service.getForward();
 if(forwardTo!=null)
 {
 Service s= map.get(forwardTo);
 RequestDispatcher dispatcher=null;
 if(s!=null)
 {
-String path = s.getPath();
-dispatcher = request.getRequestDispatcher(path);
-}else
+Class<?> serviceClass = s.getClass();
+Object srvObject = s.getServiceObject();
+if(srvObject==null) srvObject = serviceClass.getDeclaredConstructor().newInstance();
+Method method = s.getService();
+method.invoke(srvObject,valueReturned);
+}else if(forwardTo.contains("."))
 {
-dispatcher = request.getRequestDispatcher("/"+forwardTo);
+System.out.println("forward request to "+forwardTo);
+dispatcher = request.getRequestDispatcher(forwardTo);
 }
 try
 {
@@ -406,6 +459,7 @@ pw.flush();
 }
 }catch(Exception e)
 {
+System.out.println(e.getMessage());
 e.printStackTrace();
 }
 }
@@ -452,6 +506,9 @@ throw new ServiceException("Invalid argument: expected type "+fieldClass);
 }
 }catch(Exception e)
 {
+System.out.println("string value from request "+value);
+System.out.println("field class "+fieldClass);
+System.out.println(e.getMessage());
 throw new ServiceException("Invalid type of argument");
 }
 return actualValue;

@@ -3,7 +3,7 @@ import java.lang.reflect.*;
 import java.util.*;
 public class Service
 {
-private Class serviceClass;
+private Class<?> serviceClass;
 private String path;
 private String forward;
 private Method service;
@@ -16,13 +16,22 @@ private boolean injectApplicationScope;
 private boolean injectApplicationDirectory;
 private List<Autowired> autoWired;
 private boolean securedService;
-private Class checkPost;
-private Method guard;   
-public void setServiceClass(Class serviceClass)
+private Class<?> checkPost;
+private Method guard; 
+private Object serviceObject;
+public void setServiceObject(Object serviceObject)
+{
+this.serviceObject = serviceObject;
+}
+public Object getServiceObject()
+{
+return this.serviceObject;
+} 
+public void setServiceClass(Class<?> serviceClass)
 {
 this.serviceClass = serviceClass;
 }
-public Class getServiceClass()
+public Class<?> getServiceClass()
 {
 return this.serviceClass;
 }
@@ -66,7 +75,7 @@ public boolean getGetAllowed()
 {
 return this.isGetAllowed;
 }
-public void setOnStartup(boolean onStartup)
+public void setOnStartup(boolean runOnStartup)
 {
 this.runOnStartup = runOnStartup;
 }

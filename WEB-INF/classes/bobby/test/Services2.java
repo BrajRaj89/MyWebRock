@@ -9,8 +9,9 @@ import com.webrock.pojo.*;
 @InjectSessionScope("Service2")
 public class Services2
 {
-// @AutoWired(name="classNo")
-private int classNo;
+@AutoWired(name="student")
+private  Student student;
+
 private SessionScope sessionScope;
 private ServletContext servletContext;
 public void setSessionScope(SessionScope sessionScope)
@@ -33,10 +34,14 @@ System.out.println(var1+var2);
 @Post("response2")
 @Path("response2")
 @Forward("index.html")
-public void postTypeResponse(Student student)
+public void postTypeResponse(Student stu)
 {
+System.out.println("the object is null or not "+student);
+System.out.println(student.getRollNumber());
+System.out.println(student.getGender());
+System.out.println(student.getName());
 System.out.println("Response2 got called_______________________");
-System.out.println("student name :"+student.getName()+", student gender :"+student.getGender());
+System.out.println("student name :"+stu.getName());
 }
 
 @Post("response3")

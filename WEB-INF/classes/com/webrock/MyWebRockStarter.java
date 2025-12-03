@@ -48,41 +48,25 @@ return Integer.compare(this.priority,other.priority);
 }
 public void init() throws ServletException
 {
+System.out.println("init method of starter servlet got called");
+try
+{
 ServletContext context = getServletContext();
 String contextPath = context.getContextPath();
 Set<onStart> onStartobjs = new TreeSet<>();
 Map<String,Service> services = new HashMap<>();
-String packagename = getServletConfig().getInitParameter("SERVICE_PACKAGE_PREFIX");
-try
-{
-String packageName = packagename;
+String packageName = getServletConfig().getInitParameter("SERVICE_PACKAGE_PREFIX");
+System.out.println("package name is "+packageName);
 String path = packageName.replace('.', '/');
+List<Class<?>> classes=new ArrayList<>();
 ClassLoader loader = Thread.currentThread().getContextClassLoader();
 URL resource = loader.getResource(path);
-if(resource==null) 
+if (resource == null)
 {
 throw new IllegalArgumentException("Package not found: " + packageName);
 }
 File dir = new File(resource.toURI());
-if(!dir.exists() || !dir.isDirectory())
-{
-throw new IllegalArgumentException("Not a directory: " + dir.getAbsolutePath());
-}
-List<Class<?>> classes = new ArrayList<>();
-for(File file : dir.listFiles())
-{
-if(file.getName().endsWith(".class") && !file.getName().contains("$"))
-{
-String className = packageName+"."+file.getName().replace(".class", "");
-try
-{
-classes.add(Class.forName(className));
-}catch(ClassNotFoundException e)
-{
-continue;
-}
-}
-}
+scanDirectory(dir, packageName, classes);
 try
 {
 String pathForJs = getServletContext().getRealPath("WEB-INF");
@@ -95,7 +79,6 @@ String fileName = getServletConfig().getInitParameter("jsFile");
 boolean flag=false;
 File DestinationFile=null;
 RandomAccessFile raf=null;
-
 if(fileName==null || fileName.length()==0)
 {
 flag=true;
@@ -109,7 +92,6 @@ DestinationFile.delete();
 }
 raf = new RandomAccessFile(DestinationFile,"rw");
 }
-
 for(Class<?> clazz:classes)
 {
 String className = clazz.getSimpleName(); 
@@ -132,6 +114,7 @@ if(fields.length!=0)
 int index=0;
 for(Field f:fields)
 {
+f.setAccessible(true);
 raf.writeBytes(f.getName()+";\n");
 fieldsClass[index] = f.getType();
 index++;
@@ -143,6 +126,7 @@ raf.writeBytes("constructor(");
 int count=0;
 for(Field f:fields)
 {
+f.setAccessible(true);
 if(count>0) raf.writeBytes(",");
 raf.writeBytes(f.getName());
 count++;
@@ -151,6 +135,7 @@ raf.writeBytes(")\n");
 raf.writeBytes("{\n");
 for(Field f:fields)
 {
+f.setAccessible(true);
 raf.writeBytes("this."+f.getName()+"="+f.getName()+";\n");
 }
 raf.writeBytes("}\n");
@@ -162,6 +147,7 @@ raf.writeBytes("}\n");
 Method methods[] = clazz.getDeclaredMethods();
 for(Method m:methods)
 {
+m.setAccessible(true);
 String name = m.getName();
 raf.writeBytes(name+"(");
 Class returnType = m.getReturnType();
@@ -180,6 +166,7 @@ String acName = name;
 name = name.toLowerCase();
 for(Field f:fields)
 {
+f.setAccessible(true);
 String fn = f.getName();
 if(name.contains("set")) 
 {
@@ -267,6 +254,7 @@ raf.writeBytes("return promise;\n");
 String methodName=null;
 for(Method ms:methods)
 {
+ms.setAccessible(true);
 String nameOfm = ms.getName();
 if(nameOfm.startsWith("getBy"))
 {
@@ -375,6 +363,7 @@ for(Class<?> clazz:classes)
 Method methods[] = clazz.getMethods();
 for(Method m:methods)
 {
+m.setAccessible(true);
 OnStartup onStartup = m.getAnnotation(OnStartup.class);
 if(onStartup!=null)
 {
@@ -398,7 +387,6 @@ os.setClassOfM(clazz);
 onStartobjs.add(os);
 }
 }
-
 Path annoOnC = (Path)clazz.getAnnotation(Path.class);
 if(annoOnC!=null)
 {
@@ -411,17 +399,43 @@ InjectApplicationDirectory injectApplicationDirectory= (InjectApplicationDirecto
 SecuredAccess securedAccessOnC = (SecuredAccess)clazz.getAnnotation(SecuredAccess.class);
 Field fields[] = clazz.getDeclaredFields();
 List<Autowired> listOfWired  = new ArrayList<>();
+Object instance=null;
+try
+{
+instance = clazz.getDeclaredConstructor().newInstance();
+}catch(Exception e)
+{
+System.out.println("unable to create the object of class "+clazz.getSimpleName());
+}
 for(Field f:fields)
 {
+f.setAccessible(true);
 AutoWired annoOnF = f.getAnnotation(AutoWired.class);
 if(annoOnF!=null)
 {
+System.out.println("Autowired Property is "+f.getName()+"from class "+clazz.getName());
 Autowired wired = new Autowired(f.getName(),f);
+Class<?> fieldType = f.getType();
+if(!fieldType.isPrimitive())
+{
+System.out.println("Field is not primitive "+fieldType.getName());
+Object dependency =null;
+try
+{
+dependency = fieldType.getDeclaredConstructor().newInstance();
+}catch(Exception e)
+{
+System.out.println("unable to create the object of class "+fieldType.getSimpleName());
+}
+f.set(instance,dependency);
+System.out.println("autowired property is set successfully");
+}
 listOfWired.add(wired);
 }
 }
 for(Method m:methods)
 {
+m.setAccessible(true);
 Path annoOnM = m.getAnnotation(Path.class);
 Service sobj =null;
 String forwardto =null;
@@ -433,6 +447,7 @@ Forward forwardA = m.getAnnotation(Forward.class);
 Get getOnM = m.getAnnotation(Get.class);
 Post postOnM= m.getAnnotation(Post.class);
 fullPath = "/"+classN+"/"+methodN;
+System.out.println(fullPath);
 sobj = new Service();
 sobj.setServiceClass(clazz);
 sobj.setPath(fullPath);
@@ -449,12 +464,15 @@ Method methodsOfSc[] = sac.getDeclaredMethods();
 Method methodOnsc=null;
 for(Method method:methodsOfSc)
 {
+method.setAccessible(true);
 if(method.getName().equals(guardName))
 {
 methodOnsc = method;
 break;
 }
 }
+sobj.setServiceObject(instance);
+System.out.println("service object is set succefully value is"+instance);
 sobj.setSecuredService(true);
 sobj.setCheckPost(sac);
 sobj.setGuard(methodOnsc);
@@ -512,6 +530,7 @@ try
 Class<?> c = os.getClassOfM();
 Object obj = c.getDeclaredConstructor().newInstance();
 Method m = os.getMethod();
+m.setAccessible(true);
 m.invoke(obj);
 }catch(InvocationTargetException e)
 {
@@ -523,4 +542,39 @@ e.printStackTrace();
 e.printStackTrace();
 }
 }
+public void scanDirectory(File dir,String packageName,List<Class<?>> classes)
+{
+try
+{
+for (File file : dir.listFiles())
+{
+if(!file.exists() && !file.isDirectory())
+{
+System.out.println("Invalid file name "+file);
+continue;
 }
+if (file.isDirectory())
+{
+scanDirectory(file, packageName + "." + file.getName(), classes);
+}
+else if(file.getName().endsWith(".class") && !file.getName().contains("$"))
+{
+try
+{
+String className = packageName + "." + file.getName().replace(".class", "");
+Class<?> clazz = Class.forName(className);
+classes.add(clazz);
+} catch(ClassNotFoundException ignored)
+{
+System.out.println("cant load the  corrent classes");
+continue;
+}
+}
+}
+}catch(Exception e)
+{
+e.printStackTrace();
+}
+}
+}
+

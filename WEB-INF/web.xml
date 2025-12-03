@@ -13,7 +13,7 @@ metadata-complete="true">
 <servlet-class>com.webrock.MyWebRockStarter</servlet-class>
 <init-param>
 <param-name>SERVICE_PACKAGE_PREFIX</param-name>
-<param-value>bobby.test</param-value>
+<param-value>bobby</param-value>
 </init-param>
 <init-param>
 <param-name>jsFile</param-name>
@@ -21,10 +21,6 @@ metadata-complete="true">
 </init-param>
 <load-on-startup>1</load-on-startup>
 </servlet>
-<servlet-mapping>
-<servlet-name>MyWebRockStarter</servlet-name>
-<url-pattern>/startup</url-pattern>
-</servlet-mapping>
 <servlet>
 <servlet-name>MyWebRock</servlet-name>
 <servlet-class>com.webrock.MyWebRock</servlet-class>
