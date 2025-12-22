@@ -1,9 +1,9 @@
 # MyWebRock Documentation
 
-This project contains three main servlets: TMWebRockStarter Servlet, TMWebRock Servlet, and Raka Servlet, along with a tool called ServiceDoc,
+This project contains three main servlets: MyWebRockStarter Servlet, MyWebRock Servlet, and Raka Servlet, along with a tool called ServiceDoc,
 which generates a PDF containing information about the service classes.
 
-## 1. TMWebRockStarter Servlet
+## 1. MyWebRockStarter Servlet
 
 In web.xml, map this starter servlet to the URL /startup and define initialization parameters.
 
@@ -31,7 +31,7 @@ Value: Name of a JavaScript file.
 
 The servlet automatically generates this JS file in the WEB-INF/js folder. If the folder does not exist, it will be created automatically. If no filename is provided, multiple JS files will be generated, each containing an equivalent JS class for the Java service class files.
 
-## 2. TMWebRock Servlet
+## 2. MyWebRock Servlet
 
 In web.xml, map this servlet to the URL pattern /my/*
 
