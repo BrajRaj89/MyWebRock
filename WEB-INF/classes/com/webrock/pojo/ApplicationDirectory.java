@@ -5,12 +5,12 @@ import java.io.*;
 
 public class ApplicationDirectory
 {
-File directory;
-public ApplicationDirectory(File directory)
+final private String directory;
+public ApplicationDirectory(String directory)
 {
 this.directory = directory;
 }
-public File getDirectory()
+public String getDirectory()
 {
 return this.directory;
 }

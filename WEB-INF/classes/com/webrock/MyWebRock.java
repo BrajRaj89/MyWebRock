@@ -1,16 +1,18 @@
 package com.webrock;
 import com.webrock.annotations.*;
-import jakarta.servlet.*;
-import jakarta.servlet.http.*;
 import com.webrock.model.*;
 import com.webrock.pojo.*;
+import com.webrock.scope.*;
+import com.webrock.exceptions.*;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
 import java.io.*;
 import java.util.*;
 import java.lang.reflect.*;
-import com.webrock.exceptions.*;
 import com.google.gson.*;
 public class MyWebRock extends HttpServlet
 {
+private Map<Class<?>,Object> Bean_map = new HashMap<>();
 public void doGet(HttpServletRequest request,HttpServletResponse response)
 {
 processRequest(request,response,"get");
@@ -23,29 +25,87 @@ public void doDelete(HttpServletRequest request,HttpServletResponse response)
 {
 processRequest(request,response,"delete");
 }
+public Object getBean(Class<?> clazz)
+{
+if(Bean_map.containsKey(clazz))
+{
+return Bean_map.get(clazz);
+}
+try
+{
+Constructor<?>[] constructors = clazz.getConstructors();
+Constructor<?> targetConstructor = null;
+for (Constructor<?> c : constructors)
+{
+if(c.getParameterCount() > 0)
+{
+targetConstructor = c;
+break;
+}
+}
+Object obj;
+if(targetConstructor == null)
+{
+Constructor<?> defaultConstructor = clazz.getDeclaredConstructor();
+defaultConstructor.setAccessible(true);
+obj = defaultConstructor.newInstance();
+} 
+// 4. Else → resolve dependencies
+else
+{
+Class<?>[] paramTypes = targetConstructor.getParameterTypes();
+Object[] params = new Object[paramTypes.length];
+for (int i = 0; i < paramTypes.length; i++)
+{
+params[i] = getBean(paramTypes[i]);
+}
+obj = targetConstructor.newInstance(params);
+}
+// 5. Cache singleton
+Bean_map.put(clazz, obj);
+return obj;
+}catch(Exception e)
+{
+throw new RuntimeException("Failed to create bean: " + clazz.getName(), e);
+}
+}
 public void processRequest(HttpServletRequest request,HttpServletResponse response,String requestType)
 {
 try
 {
 Gson gson =null;
 gson = new Gson();
-PrintWriter pw = response.getWriter();
 String url = request.getPathInfo();
 System.out.println("request Arrived for url->"+url);
 ServletContext context = getServletContext();
 Map<String,Service> map = (Map<String,Service>)context.getAttribute("services");
 Service service = map.get(url);
-if(service!=null)
+if(service == null)
 {
-String filePath = context.getRealPath(url);
-ApplicationDirectory directory = new ApplicationDirectory(new File(filePath));
+String resourcePath = url; 
+if(resourcePath == null) resourcePath = "/";
+String realPath = context.getRealPath(resourcePath);
+if(realPath != null)
+{
+File staticFile = new File(realPath);
+if(staticFile.exists() && staticFile.isFile())
+{
+System.out.println(request.getContextPath()+resourcePath);
+response.sendRedirect(request.getContextPath() + resourcePath);
+return;
+}
+}
+response.sendError(HttpServletResponse.SC_NOT_FOUND);
+return;
+}else
+{
 try
 {
 Class<?> clazz = service.getServiceClass();
-Object obj = service.getServiceObject();
-if(obj==null)
+Object bean = getBean(clazz); 
+if(bean==null)
 {
-obj = clazz.getDeclaredConstructor().newInstance();
+bean = clazz.getDeclaredConstructor().newInstance();
 System.out.println("object for class "+url+" not found in data structure");
 }else
 {
@@ -69,9 +129,12 @@ return;
 }
 String forwardTo = service.getForward();
 HttpSession session = request.getSession();
-SessionScope sessionScope = new SessionScope(session);
 ServletContext servletContext = getServletContext();
+String path = context.getRealPath("/");
+ApplicationDirectory applicationDirectory = new ApplicationDirectory(path);
+SessionScope sessionScope = new SessionScope(session);
 ApplicationScope applicationScope = new ApplicationScope(servletContext);
+
 if(service.getSecuredService())
 {
 Class<?> securedService = service.getCheckPost();
@@ -105,6 +168,7 @@ boolean flag = (boolean)guard.invoke(ssobj,objOfparams);
 if(!flag)
 {
 System.out.println("Unauthorized access");
+
 return;
 }
 }catch(Exception e)
@@ -120,10 +184,12 @@ if(service.getInjectSessionScope())
 try
 {
 Method method = clazz.getMethod("setSessionScope");
-if(method!=null) method.invoke(obj,sessionScope);
+if(method!=null) method.invoke(bean,sessionScope);
 }catch(NoSuchMethodException e)
 {
-System.out.println(e.getMessage());
+System.out.println("The method setSessionScope Not Found");
+response.getWriter().write("The method setSessionScope Not Found");
+return;
 }
 }
 if(service.getInjectRequestScope())
@@ -132,11 +198,11 @@ RequestScope requestScope = new RequestScope(request);
 try
 {
 Method method = clazz.getMethod("setRequestScope");
-if(method!=null) method.invoke(obj,requestScope);
+if(method!=null) method.invoke(bean,requestScope);
 }catch(NoSuchMethodException e)
 {
-System.out.println("The resource setRequestScope specified Not Found");
-pw.print("The resource setRequestScope specified Not Found");
+System.out.println("The method setRequestScope Not Found");
+response.getWriter().write("The method setRequestScope Not Found");
 return;
 }
 }
@@ -145,11 +211,24 @@ if(service.getInjectApplicationScope())
 try
 {
 Method method  = clazz.getMethod("setApplicationScope");
-if(method!=null) method.invoke(obj,applicationScope);
+if(method!=null) method.invoke(bean,applicationScope);
 }catch(NoSuchMethodException e)
 {
-System.out.println("The resource setRequestScope specified Not Found");
-pw.print("The resource setRequestScope specified Not Found");
+System.out.println("The method setApplicationScope Not Found");
+response.getWriter().write("The method setApplicationScope  Not Found");
+return;
+}
+}
+if(service.getInjectApplicationDirectory())
+{
+try
+{
+Method method  = clazz.getMethod("setApplicationDirectory");
+if(method!=null) method.invoke(bean,applicationDirectory);
+}catch(NoSuchMethodException e)
+{
+System.out.println("The method setApplicationDirectory  Not Found");
+response.getWriter().write("The method setApplicationDirectory Not Found");
 return;
 }
 }
@@ -169,7 +248,7 @@ if(value==null) continue;
 try
 {
 actualValue = getActualTypeValue(value,fieldType);
-field.set(obj,actualValue);
+field.set(bean,actualValue);
 }catch(ServiceException se)
 {
 System.out.println(se.getMessage());
@@ -190,11 +269,11 @@ try
 {
 Object acval = getActualTypeValue(value,type);
 f.setAccessible(true);
-f.set(obj,acval);
+f.set(bean,acval);
 }catch(ServiceException se)
 {
 System.out.println(se.getMessage());
-pw.print(se.getMessage());
+response.getWriter().write(se.getMessage());
 }
 }
 }
@@ -230,19 +309,19 @@ try
 {
 if(m.getReturnType().getName().equals("void"))
 {
-m.invoke(obj,objp);
+m.invoke(bean,objp);
 }else
 {
-valueReturned = m.invoke(obj,objp);
+valueReturned = m.invoke(bean,objp);
 if(forwardTo==null)
 {
 if(!valueReturned.getClass().isPrimitive())
 {
 String jString = gson.toJson(valueReturned);
-pw.println(jString);
+response.getWriter().write(jString);
 }else
 {
-pw.print(valueReturned);
+response.getWriter().print(valueReturned);
 }
 return;
 }
@@ -265,7 +344,7 @@ else
 message = "Unexpected error occurred!";
 }
 response.setContentType("text/plain");
-pw.write(message);
+response.getWriter().write(message);
 }
 }else if(parameters.length>1)
 {
@@ -299,19 +378,19 @@ arguments[i] = objp;
 }
 if(m.getReturnType().getName().equals("void"))
 {
-m.invoke(obj,arguments);
+m.invoke(bean,arguments);
 }else
 {
-valueReturned = m.invoke(obj,arguments);
+valueReturned = m.invoke(bean,arguments);
 if(forwardTo==null)
 {
 if(!valueReturned.getClass().isPrimitive())
 {
 String jString = gson.toJson(valueReturned);
-pw.println(jString);
+response.getWriter().write(jString);
 }else
 {
-pw.print(valueReturned);
+response.getWriter().print(valueReturned);
 }
 return;
 }
@@ -377,10 +456,10 @@ return;
 } // for loop
 if(m.getReturnType().getName().equals("void"))
 {
-m.invoke(obj,paravalues);
+m.invoke(bean,paravalues);
 }else
 {
-valueReturned = m.invoke(obj,paravalues);
+valueReturned = m.invoke(bean,paravalues);
 String jsonString = gson.toJson(valueReturned);
 response.getWriter().print(jsonString);
 return;
@@ -391,47 +470,42 @@ else
 {
 if(m.getReturnType().getName().equals("void"))
 {
-m.invoke(obj);
+m.invoke(bean);
 }else
 {
-valueReturned = m.invoke(obj);
+valueReturned = m.invoke(bean);
 if(forwardTo==null)
 {
 if(valueReturned.getClass().isPrimitive())
 {
-pw.print(valueReturned);
+response.getWriter().print(valueReturned);
 }else
 {
 String jsonString = gson.toJson(valueReturned);
-pw.print(jsonString);
+response.getWriter().write(jsonString);
 }
 }
 return;
 }
 }
-if(forwardTo!=null)
+if(forwardTo != null)
 {
-Service s= map.get(forwardTo);
-RequestDispatcher dispatcher=null;
-if(s!=null)
+Service nextService = map.get(forwardTo);
+if(nextService != null)
 {
-Class<?> serviceClass = s.getClass();
-Object srvObject = s.getServiceObject();
-if(srvObject==null) srvObject = serviceClass.getDeclaredConstructor().newInstance();
-Method method = s.getService();
-method.invoke(srvObject,valueReturned);
-}else if(forwardTo.contains("."))
-{
-System.out.println("forward request to "+forwardTo);
-dispatcher = request.getRequestDispatcher(forwardTo);
+Method nextMethod = nextService.getService();
+nextMethod.invoke(bean, valueReturned);
+return;
 }
-try
+if(forwardTo.contains("."))
 {
-dispatcher.forward(request,response);
-}catch(Exception e)
-{
-e.printStackTrace();
+System.out.println(request.getContextPath());
+System.out.println(forwardTo);
+response.sendRedirect(request.getContextPath() + forwardTo);
+return;
 }
+response.sendError(HttpServletResponse.SC_NOT_FOUND);
+return;
 }
 }catch(InvocationTargetException ite)
 {
@@ -452,10 +526,6 @@ message = "Unexpected error occurred!";
 response.setContentType("text/plain");
 response.getWriter().write(message.replace("'", "\\'"));
 }
-}else
-{
-pw.print("Service for "+url+" is not found");
-pw.flush();
 }
 }catch(Exception e)
 {

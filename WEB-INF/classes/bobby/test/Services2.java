@@ -29,17 +29,12 @@ public void getTypeResponse( @RequestParameter("var1") int var1, @RequestParamet
 {
 System.out.println("Response1 got called_______________________");
 System.out.println(var1+var2);
-
 }
 @Post("response2")
 @Path("response2")
-@Forward("index.html")
+@Forward("/resources/login.html")
 public void postTypeResponse(Student stu)
 {
-System.out.println("the object is null or not "+student);
-System.out.println(student.getRollNumber());
-System.out.println(student.getGender());
-System.out.println(student.getName());
 System.out.println("Response2 got called_______________________");
 System.out.println("student name :"+stu.getName());
 }

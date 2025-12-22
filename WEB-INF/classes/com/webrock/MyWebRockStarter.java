@@ -1,4 +1,7 @@
 package com.webrock;
+import com.webrock.annotations.*;
+import com.webrock.pojo.*;
+import com.webrock.model.*;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.*;
@@ -6,9 +9,7 @@ import java.lang.reflect.*;
 import java.net.URL;
 import java.util.*;
 import java.lang.annotation.*;
-import com.webrock.annotations.*;
-import com.webrock.pojo.*;
-import com.webrock.model.*;
+import com.google.gson.*;
 
 public class MyWebRockStarter extends HttpServlet
 {
@@ -92,6 +93,7 @@ DestinationFile.delete();
 }
 raf = new RandomAccessFile(DestinationFile,"rw");
 }
+
 for(Class<?> clazz:classes)
 {
 String className = clazz.getSimpleName(); 
@@ -360,6 +362,7 @@ e.printStackTrace();
 String fullPath =null;
 for(Class<?> clazz:classes)
 { 
+System.out.println(clazz.getSimpleName()+"________________________________________");
 Method methods[] = clazz.getMethods();
 for(Method m:methods)
 {
@@ -387,52 +390,18 @@ os.setClassOfM(clazz);
 onStartobjs.add(os);
 }
 }
-Path annoOnC = (Path)clazz.getAnnotation(Path.class);
+Path annoOnC = clazz.getAnnotation(Path.class);
 if(annoOnC!=null)
 {
-Get getOnC = (Get)clazz.getAnnotation(Get.class);
-Post postOnC = (Post)clazz.getAnnotation(Post.class);
-InjectSessionScope  injectSessionScope = (InjectSessionScope)clazz.getAnnotation(InjectSessionScope.class);
-InjectRequestScope  injectRequestScope  = (InjectRequestScope)clazz.getAnnotation(InjectRequestScope.class);
-InjectApplicationScope injectApplicationScope = (InjectApplicationScope)clazz.getAnnotation(InjectApplicationScope.class);
-InjectApplicationDirectory injectApplicationDirectory= (InjectApplicationDirectory)clazz.getAnnotation(InjectApplicationDirectory.class);
-SecuredAccess securedAccessOnC = (SecuredAccess)clazz.getAnnotation(SecuredAccess.class);
+boolean getOnC = clazz.isAnnotationPresent(Get.class);
+boolean postOnC = clazz.isAnnotationPresent(Post.class);
+boolean sessionScope = clazz.isAnnotationPresent(InjectSessionScope.class);
+boolean requestScope  = clazz.isAnnotationPresent(InjectRequestScope.class);
+boolean applicationScope = clazz.isAnnotationPresent(InjectApplicationScope.class);
+boolean applicationDirectory= clazz.isAnnotationPresent(InjectApplicationDirectory.class);
+SecuredAccess securedAccessOnC = clazz.getAnnotation(SecuredAccess.class);
 Field fields[] = clazz.getDeclaredFields();
 List<Autowired> listOfWired  = new ArrayList<>();
-Object instance=null;
-try
-{
-instance = clazz.getDeclaredConstructor().newInstance();
-}catch(Exception e)
-{
-System.out.println("unable to create the object of class "+clazz.getSimpleName());
-}
-for(Field f:fields)
-{
-f.setAccessible(true);
-AutoWired annoOnF = f.getAnnotation(AutoWired.class);
-if(annoOnF!=null)
-{
-System.out.println("Autowired Property is "+f.getName()+"from class "+clazz.getName());
-Autowired wired = new Autowired(f.getName(),f);
-Class<?> fieldType = f.getType();
-if(!fieldType.isPrimitive())
-{
-System.out.println("Field is not primitive "+fieldType.getName());
-Object dependency =null;
-try
-{
-dependency = fieldType.getDeclaredConstructor().newInstance();
-}catch(Exception e)
-{
-System.out.println("unable to create the object of class "+fieldType.getSimpleName());
-}
-f.set(instance,dependency);
-System.out.println("autowired property is set successfully");
-}
-listOfWired.add(wired);
-}
-}
 for(Method m:methods)
 {
 m.setAccessible(true);
@@ -444,8 +413,8 @@ if(annoOnM!=null)
 String classN = annoOnC.value();
 String methodN = annoOnM.value();
 Forward forwardA = m.getAnnotation(Forward.class);
-Get getOnM = m.getAnnotation(Get.class);
-Post postOnM= m.getAnnotation(Post.class);
+boolean getOnM = m.isAnnotationPresent(Get.class);
+boolean postOnM= m.isAnnotationPresent(Post.class);
 fullPath = "/"+classN+"/"+methodN;
 System.out.println(fullPath);
 sobj = new Service();
@@ -471,8 +440,6 @@ methodOnsc = method;
 break;
 }
 }
-sobj.setServiceObject(instance);
-System.out.println("service object is set succefully value is"+instance);
 sobj.setSecuredService(true);
 sobj.setCheckPost(sac);
 sobj.setGuard(methodOnsc);
@@ -482,18 +449,18 @@ if(forwardA!=null)
 forwardto = forwardA.value();
 sobj.setForward(forwardto);
 }
-if(getOnC!=null)
+if(getOnC)
 {
 sobj.setGetAllowed(true);
-}else if(postOnC!=null)
+}else if(postOnC)
 {
 sobj.setPostAllowed(true);
 }
-else if(getOnM!=null)
+else if(getOnM)
 {
 sobj.setGetAllowed(true);
 }
-else if(postOnM!=null)
+else if(postOnM)
 {
 sobj.setPostAllowed(true);
 }else
@@ -501,19 +468,19 @@ sobj.setPostAllowed(true);
 sobj.setPostAllowed(true);
 sobj.setGetAllowed(true);
 }
-if(injectSessionScope!=null)
+if(sessionScope)
 {
 sobj.setInjectSessionScope(true);
 }
-if(injectRequestScope!=null)
+if(requestScope)
 {
 sobj.setInjectRequestScope(true);
 }
-if(injectApplicationScope!=null)
+if(applicationScope)
 {
 sobj.setInjectApplicationScope(true);
 }
-if(injectApplicationDirectory!=null)
+if(applicationDirectory)
 {
 sobj.setInjectApplicationDirectory(true);
 }

@@ -17,16 +17,7 @@ private boolean injectApplicationDirectory;
 private List<Autowired> autoWired;
 private boolean securedService;
 private Class<?> checkPost;
-private Method guard; 
-private Object serviceObject;
-public void setServiceObject(Object serviceObject)
-{
-this.serviceObject = serviceObject;
-}
-public Object getServiceObject()
-{
-return this.serviceObject;
-} 
+private Method guard;  
 public void setServiceClass(Class<?> serviceClass)
 {
 this.serviceClass = serviceClass;
@@ -111,7 +102,7 @@ public void setInjectApplicationDirectory(boolean injectApplicationDirectory)
 {
 this.injectApplicationDirectory = injectApplicationDirectory; 
 }
-public boolean getApplicationDirectory()
+public boolean getInjectApplicationDirectory()
 {
 return injectApplicationDirectory;
 }

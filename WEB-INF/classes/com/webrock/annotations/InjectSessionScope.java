@@ -5,5 +5,4 @@ import java.lang.annotation.*;
 @Target(ElementType.TYPE)
 public @interface InjectSessionScope
 {
-public String value();
 }

@@ -39,19 +39,19 @@ login(arg0,arg1,arg2)
 }
 class Services
 {
-getTypeResponse()
-{
-}
-postTypeResponse()
+runOnStartup2()
 {
 }
 runOnStartup1()
 {
 }
-runOnStartup2()
+runOStartup3(arg0)
 {
 }
-runOStartup3(arg0)
+getTypeResponse()
+{
+}
+postTypeResponse()
 {
 }
 }
@@ -60,16 +60,16 @@ class Services2
 student;
 sessionScope;
 servletContext;
-getTypeResponse(arg0,arg1)
+runOnStartup1()
 {
 }
-postTypeResponse(arg0)
+getTypeResponse(arg0,arg1)
 {
 }
 postTypeResponse(arg0,arg1,arg2)
 {
 }
-runOnStartup1()
+postTypeResponse(arg0)
 {
 }
 getSessionScope()
@@ -94,21 +94,21 @@ setName(arg0)
 {
 this.name=arg0;
 }
-setGender(arg0)
-{
-this.gender=arg0;
-}
 getGender()
 {
 return this.gender;
 }
-setRollNumber(arg0)
+setGender(arg0)
 {
-this.rollNumber=arg0;
+this.gender=arg0;
 }
 getRollNumber()
 {
 return this.rollNumber;
+}
+setRollNumber(arg0)
+{
+this.rollNumber=arg0;
 }
 }
 class StudentService
