@@ -3,10 +3,10 @@ import com.webrock.annotations.*;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import com.webrock.pojo.*;
-
+import com.webrock.scope.*;
 
 @Path("Services2")
-@InjectSessionScope("Service2")
+@InjectSessionScope
 public class Services2
 {
 @AutoWired(name="student")
@@ -24,19 +24,24 @@ return this.sessionScope;
 }
 @Get("response1")
 @Path("response1")
-@Forward("index.jsp")
-public void getTypeResponse( @RequestParameter("var1") int var1, @RequestParameter("var2") int var2 )
+// @Forward("index.jsp")
+public boolean getTypeResponse( @RequestParameter("var1") String var1, @RequestParameter("var2") String var2 )
 {
 System.out.println("Response1 got called_______________________");
-System.out.println(var1+var2);
+System.out.println("Request variable is "+var1+"and "+var2);
+return true;
 }
 @Post("response2")
 @Path("response2")
-@Forward("/resources/login.html")
-public void postTypeResponse(Student stu)
+// @Forward("/resources/login.html")
+public Object postTypeResponse()
 {
 System.out.println("Response2 got called_______________________");
-System.out.println("student name :"+stu.getName());
+// System.out.println("student name :"+stu.getName());
+User us = new User();
+us.username = "brajraj";
+us.balance = "50000000";
+return us;
 }
 
 @Post("response3")

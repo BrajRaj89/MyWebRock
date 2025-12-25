@@ -10,9 +10,13 @@ import java.io.*;
 import java.util.*;
 import java.lang.reflect.*;
 import com.google.gson.*;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class MyWebRock extends HttpServlet
 {
-private Map<Class<?>,Object> Bean_map = new HashMap<>();
+private final Map<Class<?>,Object> beanMap = new ConcurrentHashMap<>();
+private final Set<Class<?>> creating = ConcurrentHashMap.newKeySet();
+
 public void doGet(HttpServletRequest request,HttpServletResponse response)
 {
 processRequest(request,response,"get");
@@ -25,50 +29,58 @@ public void doDelete(HttpServletRequest request,HttpServletResponse response)
 {
 processRequest(request,response,"delete");
 }
+
 public Object getBean(Class<?> clazz)
 {
-if(Bean_map.containsKey(clazz))
+if(beanMap.containsKey(clazz))
 {
-return Bean_map.get(clazz);
+return beanMap.get(clazz);
 }
+if(creating.contains(clazz))
+{
+throw new RuntimeException("Circular dependency detected: " + clazz.getName());
+}
+creating.add(clazz);
 try
 {
-Constructor<?>[] constructors = clazz.getConstructors();
-Constructor<?> targetConstructor = null;
-for (Constructor<?> c : constructors)
+if(clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers()))
 {
-if(c.getParameterCount() > 0)
-{
-targetConstructor = c;
-break;
+throw new RuntimeException("Cannot instantiate interface/abstract class: " + clazz.getName());
 }
-}
-Object obj;
-if(targetConstructor == null)
+Constructor<?>[] constructors = clazz.getDeclaredConstructors();
+if(constructors.length != 1)
 {
-Constructor<?> defaultConstructor = clazz.getDeclaredConstructor();
-defaultConstructor.setAccessible(true);
-obj = defaultConstructor.newInstance();
-} 
-// 4. Else → resolve dependencies
+throw new RuntimeException("Class must have exactly ONE constructor: " + clazz.getName());
+}
+Constructor<?> constructor = constructors[0];
+constructor.setAccessible(true);
+Object instance;
+if(constructor.getParameterCount() == 0)
+{
+instance = constructor.newInstance();
+}
 else
 {
-Class<?>[] paramTypes = targetConstructor.getParameterTypes();
+Class<?>[] paramTypes = constructor.getParameterTypes();
 Object[] params = new Object[paramTypes.length];
-for (int i = 0; i < paramTypes.length; i++)
+for(int i = 0; i < paramTypes.length; i++)
 {
 params[i] = getBean(paramTypes[i]);
 }
-obj = targetConstructor.newInstance(params);
+instance = constructor.newInstance(params);
 }
-// 5. Cache singleton
-Bean_map.put(clazz, obj);
-return obj;
+beanMap.put(clazz, instance);
+return instance;
 }catch(Exception e)
 {
 throw new RuntimeException("Failed to create bean: " + clazz.getName(), e);
 }
+finally
+{
+creating.remove(clazz);
 }
+}
+
 public void processRequest(HttpServletRequest request,HttpServletResponse response,String requestType)
 {
 try
@@ -76,7 +88,6 @@ try
 Gson gson =null;
 gson = new Gson();
 String url = request.getPathInfo();
-System.out.println("request Arrived for url->"+url);
 ServletContext context = getServletContext();
 Map<String,Service> map = (Map<String,Service>)context.getAttribute("services");
 Service service = map.get(url);
@@ -90,7 +101,6 @@ if(realPath != null)
 File staticFile = new File(realPath);
 if(staticFile.exists() && staticFile.isFile())
 {
-System.out.println(request.getContextPath()+resourcePath);
 response.sendRedirect(request.getContextPath() + resourcePath);
 return;
 }
@@ -102,28 +112,22 @@ return;
 try
 {
 Class<?> clazz = service.getServiceClass();
-Object bean = getBean(clazz); 
-if(bean==null)
-{
-bean = clazz.getDeclaredConstructor().newInstance();
-System.out.println("object for class "+url+" not found in data structure");
-}else
-{
-System.out.println("object for class "+url+" found in data structure");
-}
+Object bean = getBean(clazz);
 Method m = service.getService();
 if(requestType.equals("get"))
 {
 if(!service.getGetAllowed())
 {
-response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+response.setStatus(405);
+response.getWriter().write(gson.toJson(Map.of("error", true,"message", "HTTP method not allowed for this endpoint")));
 return;
 }
 }else if(requestType.equals("post"))
 {
 if(!service.getPostAllowed())
 {
-response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+response.setStatus(405);
+response.getWriter().write(gson.toJson(Map.of("error", true,"message", "HTTP method not allowed for this endpoint")));
 return;
 }
 }
@@ -134,7 +138,7 @@ String path = context.getRealPath("/");
 ApplicationDirectory applicationDirectory = new ApplicationDirectory(path);
 SessionScope sessionScope = new SessionScope(session);
 ApplicationScope applicationScope = new ApplicationScope(servletContext);
-
+RequestScope requestScope = new RequestScope(request);
 if(service.getSecuredService())
 {
 Class<?> securedService = service.getCheckPost();
@@ -147,62 +151,68 @@ int index=0;
 for(Parameter param:paramsOfss)
 {
 Class<?> paramClass = param.getType();
-if(paramClass==HttpServletRequest.class)
+if(paramClass==RequestScope.class)
 {
-objOfparams[index] = request;
+objOfparams[index] = requestScope;
 index++;
-}else if(paramClass==HttpSession.class)
+}else if(paramClass==SessionScope.class)
 {
-objOfparams[index] = session;
+objOfparams[index] = sessionScope;
 index++;
-}else if(paramClass==ServletContext.class)
+}else if(paramClass==ApplicationScope.class)
 {
-objOfparams[index] = servletContext;
+objOfparams[index] = applicationScope;
 index++;
 }
 } 
 try
 {
-Object ssobj = securedService.getDeclaredConstructor().newInstance();
+Object ssobj = getBean(securedService);
 boolean flag = (boolean)guard.invoke(ssobj,objOfparams);
 if(!flag)
 {
-System.out.println("Unauthorized access");
-
+response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+response.setContentType("application/json");
+response.getWriter().write(gson.toJson(Map.of("error", true,"message", "Access denied:")));
 return;
 }
 }catch(Exception e)
 {
-System.out.println(e.getMessage());
-response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+response.setStatus(500);
+response.setContentType("application/json");
+response.getWriter().write(
+gson.toJson(Map.of("error", true,"message", "Authorization check failed")));
 return;
 }
-} // if has class and guard
-}// if it is secured service
+} 
+}
 if(service.getInjectSessionScope())
 {
 try
 {
-Method method = clazz.getMethod("setSessionScope");
+Method method = clazz.getMethod("setSessionScope",SessionScope.class);
 if(method!=null) method.invoke(bean,sessionScope);
 }catch(NoSuchMethodException e)
 {
-System.out.println("The method setSessionScope Not Found");
-response.getWriter().write("The method setSessionScope Not Found");
+response.setStatus(500);
+response.setContentType("application/json");
+response.getWriter().write(
+gson.toJson(Map.of("error", true,"message", "Server configuration error: setSessionScope missing")));
 return;
 }
 }
 if(service.getInjectRequestScope())
 {
-RequestScope requestScope = new RequestScope(request);
 try
 {
-Method method = clazz.getMethod("setRequestScope");
+Method method = clazz.getMethod("setRequestScope",RequestScope.class);
 if(method!=null) method.invoke(bean,requestScope);
 }catch(NoSuchMethodException e)
 {
-System.out.println("The method setRequestScope Not Found");
-response.getWriter().write("The method setRequestScope Not Found");
+response.setStatus(500);
+response.setContentType("application/json");
+response.getWriter().write(
+gson.toJson(Map.of("error", true,"message", "Server configuration error: setRequestScope missing")));
 return;
 }
 }
@@ -210,12 +220,14 @@ if(service.getInjectApplicationScope())
 {
 try
 {
-Method method  = clazz.getMethod("setApplicationScope");
+Method method  = clazz.getMethod("setApplicationScope",ApplicationScope.class);
 if(method!=null) method.invoke(bean,applicationScope);
 }catch(NoSuchMethodException e)
 {
-System.out.println("The method setApplicationScope Not Found");
-response.getWriter().write("The method setApplicationScope  Not Found");
+response.setStatus(500);
+response.setContentType("application/json");
+response.getWriter().write(
+gson.toJson(Map.of("error", true,"message", "Server configuration error: setApplicationScope missing")));
 return;
 }
 }
@@ -223,12 +235,14 @@ if(service.getInjectApplicationDirectory())
 {
 try
 {
-Method method  = clazz.getMethod("setApplicationDirectory");
+Method method  = clazz.getMethod("setApplicationDirectory",ApplicationDirectory.class);
 if(method!=null) method.invoke(bean,applicationDirectory);
 }catch(NoSuchMethodException e)
 {
-System.out.println("The method setApplicationDirectory  Not Found");
-response.getWriter().write("The method setApplicationDirectory Not Found");
+response.setStatus(500);
+response.setContentType("application/json");
+response.getWriter().write(
+gson.toJson(Map.of("error", true,"message", "Server configuration error: setApplicationDirectory missing")));
 return;
 }
 }
@@ -249,9 +263,12 @@ try
 {
 actualValue = getActualTypeValue(value,fieldType);
 field.set(bean,actualValue);
-}catch(ServiceException se)
+}catch(Exception se)
 {
-System.out.println(se.getMessage());
+response.setStatus(400);
+response.setContentType("application/json");
+response.getWriter().write(gson.toJson(Map.of("error", true,"message", se.getMessage())));
+return;
 }
 }
 }
@@ -270,267 +287,177 @@ try
 Object acval = getActualTypeValue(value,type);
 f.setAccessible(true);
 f.set(bean,acval);
-}catch(ServiceException se)
+}catch(Exception se)
 {
 System.out.println(se.getMessage());
 response.getWriter().write(se.getMessage());
 }
 }
 }
+
 Parameter parameters[] = m.getParameters();
-Object valueReturned=null;
-Object paravalues[] =null;
-if(parameters.length!=0) paravalues = new Object[parameters.length];
-if(parameters.length!=0)
+Object valueReturned = null;
+Object paravalues[] = null;
+
+if (parameters.length > 0)
 {
-String requestDataType = request.getContentType();
-if(requestDataType!=null)
+paravalues = new Object[parameters.length];
+String contentType = request.getContentType();
+boolean isJson = (contentType != null && contentType.startsWith("application/json"));
+if(isJson)
 {
-if(requestDataType.equals("application/json"))
-{
-if(requestType.equals("get"))
+if(!requestType.equals("post") && !requestType.equals("put"))
 {
 response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 return;
 }
-if(parameters.length==1)
+if(parameters.length != 1)
 {
-Class<?> jsonClass = parameters[0].getType();
-BufferedReader rd=request.getReader();
-StringBuffer sb = new StringBuffer();
-String line;
-while((line=rd.readLine())!=null) sb.append(line);
-String jsonString  = sb.toString();
-System.out.println("request string _________________ "+jsonString);
-Object objp = gson.fromJson(jsonString,jsonClass);
-System.out.println(jsonClass.getSimpleName());
-System.out.println("printing the data object "+objp);
-try
-{
-if(m.getReturnType().getName().equals("void"))
-{
-m.invoke(bean,objp);
-}else
-{
-valueReturned = m.invoke(bean,objp);
-if(forwardTo==null)
-{
-if(!valueReturned.getClass().isPrimitive())
-{
-String jString = gson.toJson(valueReturned);
-response.getWriter().write(jString);
-}else
-{
-response.getWriter().print(valueReturned);
-}
+response.sendError(400, "Only one JSON parameter is allowed");
 return;
 }
+Parameter p = parameters[0];
+Class<?> type = p.getType();
+if(type == HttpServletRequest.class || type == HttpSession.class || type == ServletContext.class)
+{
+response.sendError(400, "Invalid JSON parameter type");
+return;
 }
-}catch(InvocationTargetException e)
+BufferedReader reader = request.getReader();
+StringBuilder sb = new StringBuilder();
+String line;
+while ((line = reader.readLine()) != null) sb.append(line);
+Object jsonObj=null;
+try
 {
-System.out.println(e.getMessage());
-Throwable cause = e.getCause();
-String message;
-if(cause instanceof java.sql.SQLIntegrityConstraintViolationException)
+jsonObj = gson.fromJson(sb.toString(), type);
+}catch (com.google.gson.JsonSyntaxException je)
 {
-message = "Duplicate record! This entry already exists.";
+response.setStatus(400);
+response.getWriter().write(gson.toJson(Map.of("error", true,"message", "Malformed JSON request body")));
+return;
 }
-else if(cause instanceof java.sql.SQLException)
-{
-message = "Database error: " + cause.getMessage();
+paravalues[0] = jsonObj;
 }
 else
 {
-message = "Unexpected error occurred!";
-}
-response.setContentType("text/plain");
-response.getWriter().write(message);
-}
-}else if(parameters.length>1)
-{
-try
-{
-BufferedReader rd=request.getReader();
-StringBuffer sb = new StringBuffer();
-String line;
-while((line=rd.readLine())!=null) sb.append(line);
-String jsonString  = sb.toString();
-Object arguments[] = new Object[parameters.length];
-for(int i=0;i<parameters.length; i++)
-{
-Class<?> argClass = parameters[i].getType();
-if(argClass==HttpServletRequest.class && parameters[i].getAnnotation(RequestParameter.class)==null)
-{
-arguments[i] = request;
-}else if(argClass==HttpSession.class && parameters[i].getAnnotation(RequestParameter.class)==null)
-{
-arguments[i] = session;
-}else if(argClass==ServletContext.class && parameters[i].getAnnotation(RequestParameter.class)==null)
-{
-arguments[i] = servletContext;
-}
-else
-{
-Class<?> jsonClass = parameters[i].getType();
-Object objp = gson.fromJson(jsonString,jsonClass);
-arguments[i] = objp;
-}
-}
-if(m.getReturnType().getName().equals("void"))
-{
-m.invoke(bean,arguments);
-}else
-{
-valueReturned = m.invoke(bean,arguments);
-if(forwardTo==null)
-{
-if(!valueReturned.getClass().isPrimitive())
-{
-String jString = gson.toJson(valueReturned);
-response.getWriter().write(jString);
-}else
-{
-response.getWriter().print(valueReturned);
-}
-return;
-}
-}
-}catch(Exception e)
-{
-System.out.println(e.getMessage());
-response.sendError(HttpServletResponse.SC_FORBIDDEN);
-}
-}
-}
-}else
-{
-int index=0;
-boolean flag;
-for(Parameter para:parameters)
+int index = 0;
+for(Parameter para : parameters)
 {
 Class<?> type = para.getType();
-flag = false;
-if(type==HttpServletRequest.class)
+boolean resolved = false;
+if(type == HttpServletRequest.class)
 {
-paravalues[index] = request;
-index++;
-flag=true;
-}else if(type==HttpSession.class)
-{
-paravalues[index] =session;
-index++;
-flag=true;
-}else if(type==ServletContext.class)
-{
-paravalues[index] = servletContext;
-index++;
-flag=true;
+paravalues[index++] = request;
+resolved = true;
 }
-if(!flag)
+else if (type == HttpSession.class)
 {
-RequestParameter annoOnParam = para.getAnnotation(RequestParameter.class);
-if(annoOnParam!=null)
+paravalues[index++] = session;
+resolved = true;
+}
+else if (type == ServletContext.class)
 {
-String value=null;
-if(requestType.equals("get") || requestType.equals("delete"))
+paravalues[index++] = servletContext;
+resolved = true;
+}
+if (!resolved)
 {
-value = request.getParameter(annoOnParam.value());
-}else
+RequestParameter rp = para.getAnnotation(RequestParameter.class);
+if (rp == null)
 {
-response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+response.sendError(400,"Missing @RequestParameter for parameter: " + para.getName());
 return;
+}
+String rawValue = request.getParameter(rp.value());
+try
+{
+Object actualValue = getActualTypeValue(rawValue, type);
+paravalues[index++] = actualValue;
+}
+catch(Exception se)
+{
+response.sendError(400, se.getMessage());
+return;
+}
+}
+}
 }
 try
 {
-Object actualval = getActualTypeValue(value,type);
-paravalues[index] = actualval;
-index++;
-}catch(ServiceException se)
+if (m.getReturnType() == void.class)
 {
-System.out.println("Error while getting the actual param");
-response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+m.invoke(bean, paravalues);
 return;
-}
-}
-}
-} // for loop
-if(m.getReturnType().getName().equals("void"))
-{
-m.invoke(bean,paravalues);
-}else
-{
-valueReturned = m.invoke(bean,paravalues);
-String jsonString = gson.toJson(valueReturned);
-response.getWriter().print(jsonString);
-return;
-}
-}
 }
 else
 {
-if(m.getReturnType().getName().equals("void"))
+valueReturned = m.invoke(bean, paravalues);
+if(forwardTo == null)
 {
-m.invoke(bean);
+if(valueReturned == null)
+{
+response.getWriter().write("null");
+}
+else if(valueReturned instanceof String || valueReturned instanceof Number || valueReturned instanceof Boolean || valueReturned instanceof Character)
+{
+response.getWriter().print(valueReturned);
+}
+else
+{
+response.setContentType("application/json");
+response.getWriter().write(gson.toJson(valueReturned));
+}
+return;
+}
+}
+}
+catch(InvocationTargetException ite)
+{
+Throwable cause = ite.getCause();
+response.setContentType("application/json");
+response.getWriter().write(new Gson().toJson(Map.of("error", true,"message", cause.getMessage())));
+}
 }else
 {
 valueReturned = m.invoke(bean);
-if(forwardTo==null)
+if(forwardTo == null)
 {
-if(valueReturned.getClass().isPrimitive())
+if (valueReturned == null)
+{
+response.getWriter().write("null");
+}
+else if(valueReturned instanceof String || valueReturned instanceof Number ||valueReturned instanceof Boolean || valueReturned instanceof Character)
 {
 response.getWriter().print(valueReturned);
-}else
-{
-String jsonString = gson.toJson(valueReturned);
-response.getWriter().write(jsonString);
-}
-}
-return;
-}
-}
-if(forwardTo != null)
-{
-Service nextService = map.get(forwardTo);
-if(nextService != null)
-{
-Method nextMethod = nextService.getService();
-nextMethod.invoke(bean, valueReturned);
-return;
-}
-if(forwardTo.contains("."))
-{
-System.out.println(request.getContextPath());
-System.out.println(forwardTo);
-response.sendRedirect(request.getContextPath() + forwardTo);
-return;
-}
-response.sendError(HttpServletResponse.SC_NOT_FOUND);
-return;
-}
-}catch(InvocationTargetException ite)
-{
-Throwable cause = ite.getCause();
-String message;
-if(cause instanceof java.sql.SQLIntegrityConstraintViolationException)
-{
-message = "Duplicate record! This entry already exists.";
-}
-else if(cause instanceof java.sql.SQLException)
-{
-message = "Database error: " + cause.getMessage();
 }
 else
 {
-message = "Unexpected error occurred!";
+response.setContentType("application/json");
+response.getWriter().write(gson.toJson(valueReturned));
 }
-response.setContentType("text/plain");
-response.getWriter().write(message.replace("'", "\\'"));
+return;
+}
+}
+}catch(Exception se)
+{
+response.setStatus(500);
+response.setContentType("application/json");
+response.getWriter().write(gson.toJson(Map.of("error", true,"message", "Internal server error")));
+return;
 }
 }
 }catch(Exception e)
 {
-System.out.println(e.getMessage());
-e.printStackTrace();
+try
+{
+response.setStatus(400);
+String json = new Gson().toJson(Map.of("error", true,"message",e.getMessage()));
+response.getWriter().write(json);
+}catch(Exception ee)
+{
+System.out.println(ee.getMessage());
+}
 }
 }
 public Object getActualTypeValue(String value,Class<?> fieldClass) throws ServiceException
@@ -576,8 +503,6 @@ throw new ServiceException("Invalid argument: expected type "+fieldClass);
 }
 }catch(Exception e)
 {
-System.out.println("string value from request "+value);
-System.out.println("field class "+fieldClass);
 System.out.println(e.getMessage());
 throw new ServiceException("Invalid type of argument");
 }

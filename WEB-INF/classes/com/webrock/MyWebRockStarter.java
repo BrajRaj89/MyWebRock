@@ -49,7 +49,6 @@ return Integer.compare(this.priority,other.priority);
 }
 public void init() throws ServletException
 {
-System.out.println("init method of starter servlet got called");
 try
 {
 ServletContext context = getServletContext();
@@ -57,7 +56,6 @@ String contextPath = context.getContextPath();
 Set<onStart> onStartobjs = new TreeSet<>();
 Map<String,Service> services = new HashMap<>();
 String packageName = getServletConfig().getInitParameter("SERVICE_PACKAGE_PREFIX");
-System.out.println("package name is "+packageName);
 String path = packageName.replace('.', '/');
 List<Class<?>> classes=new ArrayList<>();
 ClassLoader loader = Thread.currentThread().getContextClassLoader();
@@ -362,7 +360,6 @@ e.printStackTrace();
 String fullPath =null;
 for(Class<?> clazz:classes)
 { 
-System.out.println(clazz.getSimpleName()+"________________________________________");
 Method methods[] = clazz.getMethods();
 for(Method m:methods)
 {
@@ -379,7 +376,7 @@ continue;
 }
 if(!returnType.getName().equals("void"))
 {
-System.out.println("this is the wrong method a method with return type void is allowed on startup");
+System.out.println(m.getName()+" Method is incorrect. Methods with a void return type are allowed during startup");
 continue;
 }
 int priority = onStartup.priority();
@@ -416,7 +413,6 @@ Forward forwardA = m.getAnnotation(Forward.class);
 boolean getOnM = m.isAnnotationPresent(Get.class);
 boolean postOnM= m.isAnnotationPresent(Post.class);
 fullPath = "/"+classN+"/"+methodN;
-System.out.println(fullPath);
 sobj = new Service();
 sobj.setServiceClass(clazz);
 sobj.setPath(fullPath);
@@ -428,7 +424,19 @@ if(securedAccessOnC!=null)
 String securedServiceClass = securedAccessOnC.checkPost();
 String guardName = securedAccessOnC.guard();
 sobj.setSecuredService(true);
-Class<?> sac = Class.forName(securedServiceClass);
+Class<?> sac = null;
+for(Class<?> c : classes) 
+{
+if (c.getSimpleName().equals(securedServiceClass) || c.getName().equals(securedServiceClass))
+{
+sac = c;
+break;
+}
+}
+if(sac == null)
+{
+throw new ClassNotFoundException("Security class not found: " + securedServiceClass);
+}
 Method methodsOfSc[] = sac.getDeclaredMethods();
 Method methodOnsc=null;
 for(Method method:methodsOfSc)
@@ -526,14 +534,14 @@ scanDirectory(file, packageName + "." + file.getName(), classes);
 }
 else if(file.getName().endsWith(".class") && !file.getName().contains("$"))
 {
+String className = packageName + "." + file.getName().replace(".class", "");
 try
 {
-String className = packageName + "." + file.getName().replace(".class", "");
 Class<?> clazz = Class.forName(className);
 classes.add(clazz);
-} catch(ClassNotFoundException ignored)
+}catch(ClassNotFoundException ignored)
 {
-System.out.println("cant load the  corrent classes");
+System.out.println(className+" Class Not Found");
 continue;
 }
 }

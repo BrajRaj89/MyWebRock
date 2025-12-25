@@ -4,7 +4,7 @@ import com.webrock.exceptions.*;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 
-@InjectSessionScope("login")
+@InjectSessionScope
 public class login
 {
 public void login(HttpServletRequest request,ServletContext servletContext,HttpSession session) throws ServiceException

@@ -39,19 +39,19 @@ login(arg0,arg1,arg2)
 }
 class Services
 {
-runOnStartup2()
+getTypeResponse()
+{
+}
+postTypeResponse()
 {
 }
 runOnStartup1()
 {
 }
+runOnStartup2()
+{
+}
 runOStartup3(arg0)
-{
-}
-getTypeResponse()
-{
-}
-postTypeResponse()
 {
 }
 }
@@ -60,8 +60,9 @@ class Services2
 student;
 sessionScope;
 servletContext;
-runOnStartup1()
+setSessionScope(arg0)
 {
+this.sessionScope=arg0;
 }
 getTypeResponse(arg0,arg1)
 {
@@ -69,16 +70,15 @@ getTypeResponse(arg0,arg1)
 postTypeResponse(arg0,arg1,arg2)
 {
 }
-postTypeResponse(arg0)
+postTypeResponse()
+{
+}
+runOnStartup1()
 {
 }
 getSessionScope()
 {
 return this.sessionScope;
-}
-setSessionScope(arg0)
-{
-this.sessionScope=arg0;
 }
 }
 class Student
@@ -102,13 +102,13 @@ setGender(arg0)
 {
 this.gender=arg0;
 }
-getRollNumber()
-{
-return this.rollNumber;
-}
 setRollNumber(arg0)
 {
 this.rollNumber=arg0;
+}
+getRollNumber()
+{
+return this.rollNumber;
 }
 }
 class StudentService
@@ -212,4 +212,9 @@ reject(new Error(message));
 });
 return promise;
 }
+}
+class User
+{
+username;
+balance;
 }
