@@ -1,1 +1,0 @@
-javac  -cp c:\tomcat11\webapps\MyWebRock\WEB-INF\classes;c:\tomcat11\lib\*;  *.java
