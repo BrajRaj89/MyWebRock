@@ -5,15 +5,15 @@ xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/n
  version="6.0"
 metadata-complete="true">
 
-<description>MyWebRock</description>
-<display-name>MyWebRock</display-name>
+<description>JWebRock</description>
+<display-name>JWebRock</display-name>
 
 <servlet>
-<servlet-name>MyWebRockStarter</servlet-name>
+<servlet-name>JWebRockStarter</servlet-name>
 <servlet-class>com.webrock.JWebRockStarter</servlet-class>
 <init-param>
 <param-name>SERVICE_PACKAGE_PREFIX</param-name>
-<param-value>bobby</param-value>
+<param-value>services</param-value>
 </init-param>
 <init-param>
 <param-name>jsFile</param-name>
@@ -22,11 +22,11 @@ metadata-complete="true">
 <load-on-startup>1</load-on-startup>
 </servlet>
 <servlet>
-<servlet-name>MyWebRock</servlet-name>
+<servlet-name>JWebRock</servlet-name>
 <servlet-class>com.webrock.JWebRock</servlet-class>
 </servlet>
 <servlet-mapping>
-<servlet-name>MyWebRock</servlet-name>
+<servlet-name>JWebRock</servlet-name>
 <url-pattern>/framework/*</url-pattern>
 <load-on-startup>2</load-on-startup>
 </servlet-mapping>
