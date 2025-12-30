@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="ServiceDoc">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/ServiceDocTool/src/ServiceDoc.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

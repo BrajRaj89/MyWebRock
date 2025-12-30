@@ -10,7 +10,7 @@ metadata-complete="true">
 
 <servlet>
 <servlet-name>MyWebRockStarter</servlet-name>
-<servlet-class>com.webrock.MyWebRockStarter</servlet-class>
+<servlet-class>com.webrock.JWebRockStarter</servlet-class>
 <init-param>
 <param-name>SERVICE_PACKAGE_PREFIX</param-name>
 <param-value>bobby</param-value>
@@ -23,7 +23,7 @@ metadata-complete="true">
 </servlet>
 <servlet>
 <servlet-name>MyWebRock</servlet-name>
-<servlet-class>com.webrock.MyWebRock</servlet-class>
+<servlet-class>com.webrock.JWebRock</servlet-class>
 </servlet>
 <servlet-mapping>
 <servlet-name>MyWebRock</servlet-name>

@@ -1,6 +1,5 @@
 package com.webrock;
 import com.webrock.annotations.*;
-import com.webrock.model.*;
 import com.webrock.pojo.*;
 import com.webrock.scope.*;
 import com.webrock.exceptions.*;
@@ -12,7 +11,7 @@ import java.lang.reflect.*;
 import com.google.gson.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class MyWebRock extends HttpServlet
+public class JWebRock extends HttpServlet
 {
 private final Map<Class<?>,Object> beanMap = new ConcurrentHashMap<>();
 private final Set<Class<?>> creating = ConcurrentHashMap.newKeySet();
