@@ -29,14 +29,14 @@ It focuses on **annotation-based service configuration**, **centralized request 
 
 JWebRock consists of the following major components:
 
-1. **MyWebRockStarter Servlet** – Framework initialization and metadata scanning
-2. **MyWebRock Servlet** – Central request dispatcher (Front Controller)
+1. **JWebRockStarter Servlet** – Framework initialization and metadata scanning
+2. **JWebRock Servlet** – Central request dispatcher (Front Controller)
 3. **Raka Servlet** – JavaScript file serving servlet
 4. **ServiceDoc Tool** – Service documentation generator (PDF)
 
 ---
 
-## 1. MyWebRockStarter Servlet
+## 1. JWebRockStarter Servlet
 
 The `JWebRockStarter` servlet initializes the framework at application startup.
 
@@ -98,7 +98,7 @@ WEB-INF/js/
 
 ---
 
-## MyWebRock Servlet (Front Controller)
+## JWebRock Servlet (Front Controller)
 
 The **JWebRock servlet** acts as the **central dispatcher** of the framework.
 
@@ -212,7 +212,7 @@ The base package is scanned recursively
 ### Using JWebRock in a Project
 
 
-1. Copy the JAR mywebrock.jar to use in your web application:
+1. Copy the JAR JWebRock.jar to use in your web application:
 2. Add in WEB-INF/lib/ of your project 
 3. Configure required servlets in web.xml
 4. Create service classes using JWebRock annotations
