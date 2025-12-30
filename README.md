@@ -1,107 +1,238 @@
-# MyWebRock Documentation
+# JWebRock Framework
 
-This project contains three main servlets: MyWebRockStarter Servlet, MyWebRock Servlet, and Raka Servlet, along with a tool called ServiceDoc,
-which generates a PDF containing information about the service classes.
+JWebRock is a **lightweight Java web framework** built on top of the **Servlet API**, designed to help developers and students understand how modern Java web frameworks work internally.
+
+It focuses on **annotation-based service configuration**, **centralized request handling**, **dependency injection**, and **clean separation of concerns**, without relying on heavy external frameworks.
+
+> ⚠️ JWebRock is **not a replacement for Spring or Spring Boot**.  
+> It is an **educational and experimental framework** created to demonstrate core backend framework concepts.
+
+---
+
+## Key Features
+
+- Annotation-based service and method mapping
+- Centralized front-controller architecture
+- JSON request and response handling
+- GET and POST request support
+- Request parameter binding
+- Dependency injection
+- Request forwarding between services
+- Security guard support using annotations
+- Automatic JavaScript client generation
+- PDF-based service documentation generation
+- Clean separation of framework and application logic
+
+---
+
+## Core Components
+
+JWebRock consists of the following major components:
+
+1. **MyWebRockStarter Servlet** – Framework initialization and metadata scanning
+2. **MyWebRock Servlet** – Central request dispatcher (Front Controller)
+3. **Raka Servlet** – JavaScript file serving servlet
+4. **ServiceDoc Tool** – Service documentation generator (PDF)
+
+---
 
 ## 1. MyWebRockStarter Servlet
 
-In web.xml, map this starter servlet to the URL /startup and define initialization parameters.
+The `JWebRockStarter` servlet initializes the framework at application startup.
 
-### First Parameter:
+### Configuration (web.xml)
 
-Name: SERVICE_PACKAGE_PREFIX
+Map the servlet to `/startup` and define the following initialization parameters.
 
-Value: The package name (e.g., com.services.pojo).
+### Initialization Parameters
 
-Requirement: The package must exist in the classes folder of the project.
+#### 1. `SERVICE_PACKAGE_PREFIX`
 
-The Starter Servlet scans all classes within this package and creates a data structure to store the required metadata.
+- **Description:** Base package to scan for service classes
+- **Example:** `com.services.pojo`
+- **Requirement:**  
+  The package must exist inside the compiled `classes` directory
 
-To enable this feature, use the @Path annotation:
+All classes inside this package are scanned, and framework metadata is generated.
 
-On a class: @Path("className")
+#### 2. `Second Parameter`
 
-On a method: @Path("methodName")
-
-### Second Parameter:
-
-Name: jsFile
-
-Value: Name of a JavaScript file.
+- **Name**: jsFile
+- **Value**: Name of a JavaScript file.
 
 The servlet automatically generates this JS file in the WEB-INF/js folder. If the folder does not exist, it will be created automatically. If no filename is provided, multiple JS files will be generated, each containing an equivalent JS class for the Java service class files.
 
-## 2. MyWebRock Servlet
 
-In web.xml, map this servlet to the URL pattern /my/*
+---
 
-All requests with /my/serviceName are handled by this servlet.
+### Service Mapping using `@Path`
+
+Services and their methods are mapped using the `@Path` annotation.
+
+```java
+@Path("student")
+public class StudentService {
+
+    @Path("add")
+    public void addStudent() {
+        ...
+    }
+}
+```
+
+## JavaScript Client Generation (`jsFile`)
+
+**Description:**  
+Specifies the name of the JavaScript file to be generated for client-side access to services.
+
+**Output Location:**  
+
+WEB-INF/js/
+
+**Behavior:**
+- The `js` folder is created automatically if it does not exist
+- If no filename is provided:
+  - Multiple JavaScript files are generated
+  - Each file corresponds to a Java service class
+- Generated JavaScript files act as **client-side proxies** for Java services
+
+---
+
+## MyWebRock Servlet (Front Controller)
+
+The **JWebRock servlet** acts as the **central dispatcher** of the framework.
+
+### Configuration
+
+In web.xml, map this servlet to the URL pattern /framework/*
+
+All requests with /framework/serviceName are handled by this servlet.
 
 The servlet looks up the requested path in its data structure and serves it.
 
-If the request includes parameters, they are parsed and passed as arguments to the service.
+---
 
-Handling JSON Requests:
+### Request Flow
 
-Requires Content-Type: application/json
+1. Client sends a request
+2. JWebRock servlet resolves the requested service path
+3. Request parameters or JSON payload are parsed
+4. Target service method is invoked
+5. Response is generated and returned to the client
 
-Requires Request Method: POST
+---
 
-The JSON is parsed into an object and passed to the service.
+### JSON Request Handling
 
-Annotations:
+- **HTTP Method:** `POST`
+- **Content-Type:** `application/json`
 
-@RequestParameter("paramName") - binds request parameters to method parameters.
+**Behavior:**
+- JSON payload is parsed into Java objects
+- Parsed objects are automatically passed to service methods
 
-@AutoWired("fieldName") - automatically sets class fields from request parameters.
+---
 
-@Get("methodName"), @Post("methodName") - handle request methods like if a method contains @Get annotation then it will only served if the get type request is made.
+## Supported Annotations
 
- @Forward("methodName") the request is forwarded to specified service if the current service is completed and the request is forwarded 
+| Annotation | Description |
+|---------|------------|
+| `@Path` | Maps a class or method to a URL path |
+| `@RequestParameter("name")` | Binds request parameters to method arguments |
+| `@AutoWired("fieldName")` | Injects request parameters into class fields |
+| `@Get("path")` | Allows only GET requests |
+| `@Post("path")` | Allows only POST requests |
+| `@Forward("servicePath")` | Forwards the request after execution |
+| `@SecuredAccess` | Make Service Secure |
+| `@InjectSessionScope` | Injects session scope |
+| `@InjectApplicationScope` | Injects application scope |
+| `@InjectRequestScope` | Injects request scope |
+| `@InjectApplicationDirectory` | Injects Project Directory name |
 
-@InjectSessionScope, @InjectApplicationScope, @InjectRequestScope - inject corresponding scope objects (requires setter methods like setSessionScope()).
 
-@SecuredAccess(checkPost="className", guard="methodName") -if a class declared with this then before serving a request, it creates an instance of the checkPost class and executes the guard method. If successful, the service runs; otherwise, a SC_SERVICE_UNREACHABLE error is sent.
 
-## 3. Raka Servlet
+> Scope injection requires setter methods such as `setSessionScope()`.
 
-In web.xml, map this servlet to /jsFile
+---
 
-Requests can specify a JS file name
-Example: /jsFile?name=Student.js
+## Security Support
 
-If the file exists in WEB-INF/js, it is served to the browser.
+### `@SecuredAccess`
 
-Any JS file in the folder can be served in this way.
+```java
+@SecuredAccess(checkPost="AuthGuard", guard="validate")
 
-## 4. ServiceDoc Tool
+Behavior: Executes the specified guard method before service execution
 
-The ServiceDoc tool generates a PDF containing:
+If validation fails: Service execution is blocked
 
-Class names (with package names)
+SC_SERVICE_UNREACHABLE response is returned
+This mechanism enables custom authentication and authorization logic.
 
-Method names
+```
+---
 
-Applied annotations
 
-Parameters and their annotations
+## Raka Servlet (JavaScript Serving)
 
-The tool is packaged as a JAR file in the ServiceDocTool folder.
+```
+The Raka servlet serves JavaScript files generated by JWebRock.
 
-Usage:
-
-java -cp classpath_of_package ServiceDoc package-name  output-pdf
-
-Example:
-
-java -cp c:\itext7-core.jar;c:\tomcat11\myproject\classes; ServiceDoc com.myapp c:\java\myproject\docs\classdoc.pdf
+Configuration
+Map the servlet to:  /jsFile
+Usage Example  /jsFile?name=Student.js
 
 Notes:
+JavaScript files are served from WEB-INF/js
+Any file inside this folder can be accessed securely
 
- classpath : Location of compiled .class files or JARs.
+```
+---
 
- package-name : Base package to scan (e.g., com.myapp).
+## ServiceDoc Tool
+ServiceDoc is a standalone utility that generates PDF documentation for service classes.
 
- output-pdf : Full path for the generated PDF.
+  ### Information Included
+- Fully qualified class names
+- Method names
+- Applied annotations
+- Parameters and their annotations
 
-The tool uses iText7 to generate PDFs. Ensure all itext7.jar files are included in the classpath.
+```
+Usage : java -cp <classpath> ServiceDoc <package-name> <output-pdf>
+
+Example : java -cp c:\itext7-core.jar;c:\tomcat11\myproject\classes; 
+ServiceDoc com.myapp c:\java\myproject\docs\classdoc.pdf
+Notes
+Ensure all iText7 JARs are included in the classpath
+The base package is scanned recursively
+
+```
+
+### Using JWebRock in a Project
+
+
+1. Copy the JAR mywebrock.jar to use in your web application:
+2. Add in WEB-INF/lib/ of your project 
+3. Configure required servlets in web.xml
+4. Create service classes using JWebRock annotations
+
+
+### Example Application
+
+***SmartWallet – Mini Wallet Web Application***
+***SmartWallet is a Java-based mini wallet web application built using the JWebRock framework.***
+
+***Features***
+- Secure user login
+- Token-based authentication
+- Dashboard with balance inquiry
+- Fund transfer functionality
+- Transaction history viewing
+- Logout support
+
+
+*This project serves as a reference implementation to demonstrate the real-world usage and working of the JWebRock framework JAR.*
+
+**📌 Repository:**
+SmartWallet-JWebRock - https://github.com/BrajRaj89/SmartWallet
